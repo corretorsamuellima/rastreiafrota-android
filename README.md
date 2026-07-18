@@ -1,8 +1,8 @@
-# RastreiaFrota Áudio Plus 1.4.0
+# RastreiaFrota Áudio Plus 1.4.1
 
 Aplicativo Android nativo em Kotlin para rastreamento veicular, gravação de segurança autorizada e solicitações/agendamentos de áudio enviados pelo Painel CarroSeguro 2.5.
 
-## Novidades da versão 1.4.0
+## Novidades da versão 1.4.1
 
 - Botão para atualizar a URL do servidor e reconfigurar o aparelho.
 - HTTPS obrigatório em produção e nova ativação após a troca de servidor.
@@ -14,6 +14,9 @@ Aplicativo Android nativo em Kotlin para rastreamento veicular, gravação de se
 - Push FCM opcional para acordar imediatamente a fila segura de comandos.
 - Registro/rotação do token push pela API HMAC e fallback de polling quando o push não está configurado.
 - Compatibilidade com agendamentos GPS criados no painel 2.6.
+- Assistente de preparação para localização precisa, localização o tempo todo, notificações, GPS, internet e liberação de bateria.
+- Diagnóstico do Firebase e do último registro do token push, sem exibir o token.
+- Envio ao painel do estado real das permissões essenciais do celular.
 
 ## Comportamento das solicitações
 
@@ -37,8 +40,8 @@ Aplicativo Android nativo em Kotlin para rastreamento veicular, gravação de se
 
 - Aplicativo: RastreiaFrota Áudio Plus
 - Package ID: `com.rastreiafrota.app.audio.plus`
-- Versão: `1.4.0`
-- Version code: `8`
+- Versão: `1.4.1`
+- Version code: `9`
 - Android mínimo: 8.0 (API 26)
 - Target SDK: 34
 - Build debug/LAN permite HTTP para teste local com XAMPP.
