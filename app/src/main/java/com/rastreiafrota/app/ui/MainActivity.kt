@@ -25,6 +25,8 @@ import com.rastreiafrota.app.databinding.ActivityMainBinding
 import com.rastreiafrota.app.service.AudioRecordingService
 import com.rastreiafrota.app.service.LocationTrackingService
 import com.rastreiafrota.app.util.DeviceInfo
+import com.rastreiafrota.app.util.TrackingReadiness
+import com.rastreiafrota.app.push.FirebaseBootstrap
 import com.rastreiafrota.app.work.AudioSyncWorker
 import com.rastreiafrota.app.work.SyncWorker
 import kotlinx.coroutines.launch
@@ -36,9 +38,37 @@ class MainActivity : AppCompatActivity() {
     private lateinit var audioRepository: AudioRepository
     private lateinit var audioCommandRepository: AudioCommandRepository
     private var pendingAudioSos = false
+    private var setupInProgress = false
 
     private val permissionLauncher =
-        registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { refreshUi() }
+        registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
+            refreshUi()
+            if (setupInProgress && TrackingReadiness.hasPreciseLocation(this)) advanceTrackerSetup()
+            else if (setupInProgress) { setupInProgress = false; show("A localização precisa não foi autorizada. O rastreamento não pode iniciar sem ela.") }
+        }
+
+    private val notificationLauncher =
+        registerForActivityResult(ActivityResultContracts.RequestPermission()) {
+            refreshUi()
+            if (setupInProgress && TrackingReadiness.notificationsEnabled(this)) advanceTrackerSetup()
+            else if (setupInProgress) { setupInProgress = false; show("As notificações não foram autorizadas. Você pode liberá-las depois nos ajustes.") }
+        }
+
+    private val backgroundLocationLauncher =
+        registerForActivityResult(ActivityResultContracts.RequestPermission()) {
+            refreshUi()
+            if (setupInProgress && TrackingReadiness.hasBackgroundLocation(this)) advanceTrackerSetup()
+            else if (setupInProgress) { setupInProgress = false; show("Escolha 'Permitir o tempo todo' para rastrear com a tela apagada.") }
+        }
+
+    private val settingsLauncher =
+        registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
+            refreshUi()
+            if (setupInProgress) {
+                setupInProgress = false
+                show("Configuração conferida. Toque em 'Continuar preparação' para verificar o próximo item.")
+            }
+        }
 
     private val microphoneLauncher =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
@@ -70,8 +100,12 @@ class MainActivity : AppCompatActivity() {
         }
         binding.btnTest.setOnClickListener { testConnection() }
         binding.btnDiagnostics.setOnClickListener { startActivity(Intent(this, DiagnosticsActivity::class.java)) }
-        binding.btnPermissions.setOnClickListener { requestAllPermissions() }
+        binding.btnPrepareTracker.setOnClickListener { beginTrackerSetup() }
+        binding.btnPermissions.setOnClickListener { beginTrackerSetup() }
         binding.btnBattery.setOnClickListener { requestIgnoreBatteryOptimization() }
+        binding.btnGpsSettings.setOnClickListener { openLocationSettings() }
+        binding.btnNetworkSettings.setOnClickListener { openNetworkSettings() }
+        binding.btnNotificationSettings.setOnClickListener { openNotificationSettings() }
         binding.btnChangeServer.setOnClickListener { confirmServerReconfiguration() }
 
         binding.btnAudioPermission.setOnClickListener { requestMicrophone(false) }
@@ -129,8 +163,27 @@ class MainActivity : AppCompatActivity() {
             binding.tvGps.text = "GPS: ${if (DeviceInfo.isGpsEnabled(this@MainActivity)) "ativo" else "inativo"}"
             binding.tvNetwork.text = "Internet: ${DeviceInfo.networkType(this@MainActivity)}"
             binding.tvBattery.text = "Bateria: ${DeviceInfo.batteryLevel(this@MainActivity) ?: "—"}%"
-            binding.btnPermissions.visibility = if (hasLocationPermissions()) View.GONE else View.VISIBLE
-            binding.btnBattery.visibility = if (DeviceInfo.isIgnoringBatteryOptimizations(this@MainActivity)) View.GONE else View.VISIBLE
+            val readiness = TrackingReadiness.snapshot(this@MainActivity)
+            binding.tvReadinessTitle.text = if (readiness.reliableReady) {
+                "Celular preparado para rastreamento"
+            } else {
+                "Preparação ${readiness.readyCount}/6 concluída"
+            }
+            binding.tvReadinessDetails.text = listOf(
+                "${mark(readiness.preciseLocation)} Localização precisa",
+                "${mark(readiness.backgroundLocation)} Localização o tempo todo",
+                "${mark(readiness.notifications)} Notificações permitidas",
+                "${mark(readiness.batteryUnrestricted)} Sem restrição de bateria",
+                "${mark(readiness.gpsEnabled)} GPS ligado",
+                "${mark(readiness.online)} Internet disponível",
+                "${if (readiness.firebaseConfigured) "⚡" else "○"} Firebase ${if (readiness.firebaseConfigured) "pronto para push" else "não configurado; usando polling"}"
+            ).joinToString("\n")
+            binding.btnPrepareTracker.text = if (readiness.reliableReady) "Conferir preparação novamente" else "Continuar preparação"
+            binding.btnPermissions.visibility = if (readiness.preciseLocation && readiness.backgroundLocation) View.GONE else View.VISIBLE
+            binding.btnBattery.visibility = if (readiness.batteryUnrestricted) View.GONE else View.VISIBLE
+            binding.btnGpsSettings.visibility = if (readiness.gpsEnabled) View.GONE else View.VISIBLE
+            binding.btnNetworkSettings.visibility = if (readiness.online) View.GONE else View.VISIBLE
+            binding.btnNotificationSettings.visibility = if (readiness.notifications) View.GONE else View.VISIBLE
 
             val audioEnabled = settings.audioEnabled()
             val audioRunning = settings.audioRecording()
@@ -168,21 +221,67 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun hasLocationPermissions(): Boolean {
-        val fine = ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
-        val bg = Build.VERSION.SDK_INT < Build.VERSION_CODES.Q ||
-            ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_BACKGROUND_LOCATION) == PackageManager.PERMISSION_GRANTED
-        return fine && bg
+        return TrackingReadiness.hasPreciseLocation(this) && TrackingReadiness.hasBackgroundLocation(this)
     }
 
     private fun hasMicrophonePermission(): Boolean =
         ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
 
-    private fun requestAllPermissions() {
-        val base = mutableListOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION)
-        if (Build.VERSION.SDK_INT >= 33) base += Manifest.permission.POST_NOTIFICATIONS
-        val fineGranted = ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
-        if (!fineGranted) permissionLauncher.launch(base.toTypedArray())
-        else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) permissionLauncher.launch(arrayOf(Manifest.permission.ACCESS_BACKGROUND_LOCATION))
+    private fun beginTrackerSetup() {
+        setupInProgress = true
+        advanceTrackerSetup()
+    }
+
+    private fun advanceTrackerSetup() {
+        val readiness = TrackingReadiness.snapshot(this)
+        when {
+            !readiness.preciseLocation -> {
+                permissionLauncher.launch(arrayOf(
+                    Manifest.permission.ACCESS_FINE_LOCATION,
+                    Manifest.permission.ACCESS_COARSE_LOCATION
+                ))
+            }
+            !readiness.notifications && Build.VERSION.SDK_INT >= 33 &&
+                ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED -> {
+                notificationLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+            }
+            !readiness.notifications -> explainAndOpen(
+                "Ativar notificações",
+                "As notificações mantêm o serviço de rastreamento visível e avisam quando o Android interrompe uma função.",
+                ::notificationSettingsIntent
+            )
+            !readiness.backgroundLocation && Build.VERSION.SDK_INT == Build.VERSION_CODES.Q -> {
+                backgroundLocationLauncher.launch(Manifest.permission.ACCESS_BACKGROUND_LOCATION)
+            }
+            !readiness.backgroundLocation -> explainAndOpen(
+                "Permitir o tempo todo",
+                "Nos ajustes do aplicativo, abra Permissões → Localização e escolha 'Permitir o tempo todo'. Depois volte ao RastreiaFrota.",
+                ::applicationSettingsIntent
+            )
+            !readiness.gpsEnabled -> explainAndOpen(
+                "Ligar o GPS",
+                "Ative a localização do aparelho para que novas posições possam ser capturadas.",
+                { Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS) }
+            )
+            !readiness.batteryUnrestricted -> {
+                requestIgnoreBatteryOptimization()
+            }
+            !readiness.online -> explainAndOpen(
+                "Ativar internet",
+                "Ligue os dados móveis ou o Wi-Fi. Sem conexão, o app guarda as posições e envia posteriormente.",
+                { Intent(Settings.ACTION_WIRELESS_SETTINGS) }
+            )
+            else -> {
+                setupInProgress = false
+                FirebaseBootstrap.registerCurrentToken(applicationContext)
+                lifecycleScope.launch {
+                    repository.sendStatus("readiness_ready")
+                    if (settings.trackingEnabled()) LocationTrackingService.start(this@MainActivity)
+                    refreshUi()
+                }
+                show(if (readiness.firebaseConfigured) "Preparação concluída. Rastreamento e push estão prontos." else "Preparação principal concluída. O Firebase ainda precisa das credenciais do projeto.")
+            }
+        }
     }
 
     private fun requestMicrophone(sos: Boolean) {
@@ -243,13 +342,43 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun requestIgnoreBatteryOptimization() {
-        startActivity(Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS, Uri.parse("package:$packageName")))
+        val direct = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS, Uri.parse("package:$packageName"))
+        val fallback = Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)
+        val intent = if (direct.resolveActivity(packageManager) != null) direct else fallback
+        launchSettings(intent)
     }
+
+    private fun openLocationSettings() = launchSettings(Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS))
+    private fun openNetworkSettings() = launchSettings(Intent(Settings.ACTION_WIRELESS_SETTINGS))
+    private fun openNotificationSettings() = launchSettings(notificationSettingsIntent())
+
+    private fun applicationSettingsIntent() =
+        Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:$packageName"))
+
+    private fun notificationSettingsIntent() = Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).apply {
+        putExtra(Settings.EXTRA_APP_PACKAGE, packageName)
+    }
+
+    private fun launchSettings(intent: Intent) {
+        if (intent.resolveActivity(packageManager) != null) settingsLauncher.launch(intent)
+        else show("Não foi possível abrir este ajuste automaticamente.")
+    }
+
+    private fun explainAndOpen(title: String, message: String, intent: () -> Intent) {
+        MaterialAlertDialogBuilder(this)
+            .setTitle(title)
+            .setMessage(message)
+            .setNegativeButton("Agora não") { _, _ -> setupInProgress = false }
+            .setPositiveButton("Abrir ajustes") { _, _ -> launchSettings(intent()) }
+            .show()
+    }
+
+    private fun mark(ok: Boolean) = if (ok) "✓" else "!"
 
     private fun startTracking() {
         if (!hasLocationPermissions()) {
             show("Conceda as permissões de localização antes de iniciar.")
-            requestAllPermissions()
+            beginTrackerSetup()
             return
         }
         lifecycleScope.launch {
