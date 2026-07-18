@@ -10,6 +10,7 @@ import androidx.work.WorkerParameters
 import com.rastreiafrota.app.data.prefs.SettingsStore
 import com.rastreiafrota.app.data.remote.ApiClient
 import com.rastreiafrota.app.data.remote.PushTokenRequest
+import java.util.Date
 
 class PushTokenWorker(context: Context, params: WorkerParameters) : CoroutineWorker(context, params) {
     override suspend fun doWork(): Result {
@@ -19,9 +20,17 @@ class PushTokenWorker(context: Context, params: WorkerParameters) : CoroutineWor
         if (!settings.isActivated) return Result.retry()
         return try {
             val response = ApiClient.service(settings).registerPushToken(PushTokenRequest(token))
-            if (response.isSuccessful && response.body()?.success == true) Result.success()
-            else if (response.code() in 400..499) Result.failure() else Result.retry()
-        } catch (_: Exception) { Result.retry() }
+            if (response.isSuccessful && response.body()?.success == true) {
+                settings.setPushStatus(ApiClient.iso8601(Date()), null)
+                Result.success()
+            } else {
+                settings.setPushStatus(null, "Falha ao registrar push: HTTP ${response.code()}")
+                if (response.code() in 400..499) Result.failure() else Result.retry()
+            }
+        } catch (e: Exception) {
+            settings.setPushStatus(null, e.message ?: "Falha de comunicação com o push")
+            Result.retry()
+        }
     }
 
     companion object {
@@ -33,4 +42,3 @@ class PushTokenWorker(context: Context, params: WorkerParameters) : CoroutineWor
         }
     }
 }
-
