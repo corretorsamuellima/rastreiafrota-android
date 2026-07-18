@@ -11,6 +11,7 @@ import com.rastreiafrota.app.data.local.AppDatabase
 import com.rastreiafrota.app.data.prefs.SettingsStore
 import com.rastreiafrota.app.databinding.ActivityDiagnosticsBinding
 import com.rastreiafrota.app.util.DeviceInfo
+import com.rastreiafrota.app.util.TrackingReadiness
 import kotlinx.coroutines.launch
 
 class DiagnosticsActivity : AppCompatActivity() {
@@ -32,14 +33,14 @@ class DiagnosticsActivity : AppCompatActivity() {
                 ContextCompat.checkSelfPermission(this@DiagnosticsActivity, p) == PackageManager.PERMISSION_GRANTED
             }
             val bg = Build.VERSION.SDK_INT < 29 || granted(Manifest.permission.ACCESS_BACKGROUND_LOCATION)
-            val notif = Build.VERSION.SDK_INT < 33 || granted(Manifest.permission.POST_NOTIFICATIONS)
+            val readiness = TrackingReadiness.snapshot(this@DiagnosticsActivity)
             val lines = listOf(
                 "LOCALIZAÇÃO E SISTEMA",
                 "Permissão GPS precisa: ${ok(granted(Manifest.permission.ACCESS_FINE_LOCATION))}",
                 "Permissão 2º plano: ${ok(bg)}",
-                "Permissão notificação: ${ok(notif)}",
-                "Otimização de bateria ignorada: ${ok(DeviceInfo.isIgnoringBatteryOptimizations(this@DiagnosticsActivity))}",
-                "GPS do aparelho: ${ok(DeviceInfo.isGpsEnabled(this@DiagnosticsActivity))}",
+                "Notificações realmente ativas: ${ok(readiness.notifications)}",
+                "Otimização de bateria ignorada: ${ok(readiness.batteryUnrestricted)}",
+                "GPS do aparelho: ${ok(readiness.gpsEnabled)}",
                 "Internet: ${DeviceInfo.networkType(this@DiagnosticsActivity)}",
                 "Dispositivo ativado: ${ok(settings.isActivated)}",
                 "Rastreamento habilitado: ${ok(settings.trackingEnabled())}",
@@ -47,6 +48,10 @@ class DiagnosticsActivity : AppCompatActivity() {
                 "Última captura: ${db.pendingLocationDao().lastCapturedAt() ?: "—"}",
                 "Última sincronização: ${settings.lastSync()}",
                 "Último erro da API: ${settings.lastApiError().ifEmpty { "nenhum" }}",
+                "Condições principais prontas: ${ok(readiness.reliableReady)} (${readiness.readyCount}/6)",
+                "Firebase configurado no APK: ${ok(readiness.firebaseConfigured)}",
+                "Último registro do push: ${settings.lastPushSync()}",
+                "Último erro do push: ${settings.lastPushError().ifEmpty { "nenhum" }}",
                 "",
                 "PROTEÇÃO POR ÁUDIO",
                 "Permissão de microfone: ${ok(granted(Manifest.permission.RECORD_AUDIO))}",
