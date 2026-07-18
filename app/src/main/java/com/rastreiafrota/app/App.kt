@@ -12,6 +12,7 @@ import com.rastreiafrota.app.work.AudioSyncWorker
 import com.rastreiafrota.app.work.AudioCommandWorker
 import com.rastreiafrota.app.work.SyncWorker
 import com.rastreiafrota.app.work.RemoteCommandWorker
+import com.rastreiafrota.app.push.FirebaseBootstrap
 import java.util.concurrent.TimeUnit
 
 class App : Application() {
@@ -19,6 +20,7 @@ class App : Application() {
         super.onCreate()
         createNotificationChannels()
         schedulePeriodicSync()
+        FirebaseBootstrap.initialize(this)
     }
 
     private fun createNotificationChannels() {
