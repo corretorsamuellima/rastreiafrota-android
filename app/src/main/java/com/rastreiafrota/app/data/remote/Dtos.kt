@@ -179,3 +179,4 @@ data class DeviceCommandDto(
 )
 data class DeviceCommandsData(val commands: List<DeviceCommandDto> = emptyList(), @SerializedName("server_time") val serverTime: String?)
 data class DeviceCommandResponseRequest(val status: String, val message: String? = null)
+data class PushTokenRequest(val token: String, val provider: String = "fcm")
