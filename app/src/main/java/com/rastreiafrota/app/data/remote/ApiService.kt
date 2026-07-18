@@ -33,4 +33,6 @@ interface ApiService {
     suspend fun deviceCommands(): Response<ApiEnvelope<DeviceCommandsData>>
     @POST("api/v1/device/commands/{id}/respond")
     suspend fun respondDeviceCommand(@Path("id") id: Long, @Body body: DeviceCommandResponseRequest): Response<ApiEnvelope<Any>>
+    @POST("api/v1/device/push-token")
+    suspend fun registerPushToken(@Body body: PushTokenRequest): Response<ApiEnvelope<Any>>
 }
