@@ -9,6 +9,7 @@ import com.rastreiafrota.app.data.remote.BatchRequest
 import com.rastreiafrota.app.data.remote.LocationDto
 import com.rastreiafrota.app.data.remote.StatusRequest
 import com.rastreiafrota.app.util.DeviceInfo
+import com.rastreiafrota.app.util.TrackingReadiness
 import java.util.UUID
 import java.util.concurrent.TimeUnit
 
@@ -88,6 +89,7 @@ class TrackingRepository(private val context: Context) {
     suspend fun sendStatus(event: String? = null): Boolean {
         if (!settings.isActivated) return false
         return try {
+            val readiness = TrackingReadiness.snapshot(context)
             val response = ApiClient.service(settings).sendStatus(
                 StatusRequest(
                     battery = DeviceInfo.batteryLevel(context),
@@ -96,7 +98,11 @@ class TrackingRepository(private val context: Context) {
                     pendingCount = dao.pendingCount(),
                     appVersion = DeviceInfo.appVersion(context),
                     event = event,
-                    lastError = settings.lastApiError().takeIf { it.isNotBlank() }
+                    lastError = settings.lastApiError().takeIf { it.isNotBlank() },
+                    backgroundLocation = readiness.backgroundLocation,
+                    notificationsEnabled = readiness.notifications,
+                    batteryOptimizationIgnored = readiness.batteryUnrestricted,
+                    pushConfigured = readiness.firebaseConfigured
                 )
             )
             if (response.isSuccessful && response.body()?.success == true) {
