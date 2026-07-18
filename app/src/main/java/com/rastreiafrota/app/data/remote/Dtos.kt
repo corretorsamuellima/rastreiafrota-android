@@ -64,7 +64,11 @@ data class StatusRequest(
     @SerializedName("pending_count") val pendingCount: Int,
     @SerializedName("app_version") val appVersion: String,
     val event: String? = null,
-    @SerializedName("last_error") val lastError: String? = null
+    @SerializedName("last_error") val lastError: String? = null,
+    @SerializedName("background_location") val backgroundLocation: Boolean? = null,
+    @SerializedName("notifications_enabled") val notificationsEnabled: Boolean? = null,
+    @SerializedName("battery_optimization_ignored") val batteryOptimizationIgnored: Boolean? = null,
+    @SerializedName("push_configured") val pushConfigured: Boolean? = null
 )
 
 data class ConfigData(
