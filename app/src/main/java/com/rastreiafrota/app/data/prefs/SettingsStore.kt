@@ -82,6 +82,8 @@ class SettingsStore(private val context: Context) {
     private val kAudioCommandPollSeconds = intPreferencesKey("audio_command_poll_seconds")
     private val kLastAudioCommandCheck = stringPreferencesKey("last_audio_command_check")
     private val kLastAudioCommandMessage = stringPreferencesKey("last_audio_command_message")
+    private val kLastPushSync = stringPreferencesKey("last_push_sync")
+    private val kLastPushError = stringPreferencesKey("last_push_error")
 
     suspend fun baseUrl(): String {
         val saved = context.dataStore.data.first()[kBaseUrl]
@@ -181,4 +183,13 @@ class SettingsStore(private val context: Context) {
     suspend fun setLastAudioCommandCheck(value: String, message: String) { context.dataStore.edit { it[kLastAudioCommandCheck] = value; it[kLastAudioCommandMessage] = message } }
     suspend fun lastAudioCommandCheck(): String = context.dataStore.data.first()[kLastAudioCommandCheck] ?: "—"
     suspend fun lastAudioCommandMessage(): String = context.dataStore.data.first()[kLastAudioCommandMessage] ?: "Nenhuma solicitação consultada."
+
+    suspend fun setPushStatus(lastSync: String?, error: String?) {
+        context.dataStore.edit {
+            if (lastSync != null) it[kLastPushSync] = lastSync
+            it[kLastPushError] = error ?: ""
+        }
+    }
+    suspend fun lastPushSync(): String = context.dataStore.data.first()[kLastPushSync] ?: "—"
+    suspend fun lastPushError(): String = context.dataStore.data.first()[kLastPushError] ?: ""
 }
