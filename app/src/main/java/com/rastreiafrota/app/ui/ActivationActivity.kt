@@ -12,6 +12,7 @@ import com.rastreiafrota.app.data.remote.ActivateRequest
 import com.rastreiafrota.app.data.remote.ApiClient
 import com.rastreiafrota.app.databinding.ActivityActivationBinding
 import com.rastreiafrota.app.util.DeviceInfo
+import com.rastreiafrota.app.push.FirebaseBootstrap
 import kotlinx.coroutines.launch
 
 /** Tela de ativação: código gerado no painel → credenciais seguras (Keystore). */
@@ -83,6 +84,7 @@ class ActivationActivity : AppCompatActivity() {
                     data.audioConfig?.let { settings.saveAudioConfig(it) }
                     settings.setVehicleInfo(data.vehicle?.plate, data.company?.name, data.device?.name)
                     settings.setTrackingEnabled(true)
+                    FirebaseBootstrap.registerCurrentToken(applicationContext)
                     startActivity(Intent(this@ActivationActivity, MainActivity::class.java))
                     finish()
                 } else {
