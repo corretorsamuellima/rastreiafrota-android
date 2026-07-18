@@ -1,5 +1,10 @@
 import java.util.Properties
 
+fun quotedBuildConfig(value: String): String = "\"" + value.replace("\\", "\\\\").replace("\"", "\\\"") + "\""
+fun firebaseValue(name: String): String = providers.gradleProperty(name).orNull
+    ?: providers.environmentVariable(name).orNull
+    ?: ""
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -20,8 +25,12 @@ android {
         applicationId = "com.rastreiafrota.app.audio.plus"
         minSdk = 26            // Android 8.0
         targetSdk = 34
-        versionCode = 7
-        versionName = "1.3.0"
+        versionCode = 8
+        versionName = "1.4.0"
+        buildConfigField("String", "FIREBASE_APP_ID", quotedBuildConfig(firebaseValue("FIREBASE_APP_ID")))
+        buildConfigField("String", "FIREBASE_API_KEY", quotedBuildConfig(firebaseValue("FIREBASE_API_KEY")))
+        buildConfigField("String", "FIREBASE_PROJECT_ID", quotedBuildConfig(firebaseValue("FIREBASE_PROJECT_ID")))
+        buildConfigField("String", "FIREBASE_SENDER_ID", quotedBuildConfig(firebaseValue("FIREBASE_SENDER_ID")))
     }
 
     signingConfigs {
@@ -38,7 +47,7 @@ android {
     buildTypes {
         debug {
             // URL de desenvolvimento configurável APENAS em debug (tela de ativação permite alterar)
-            buildConfigField("String", "BASE_URL", "\"http://192.168.1.103/painel-web/\"")
+            buildConfigField("String", "BASE_URL", "\"http://192.168.1.102/painel-web/\"")
             buildConfigField("boolean", "ALLOW_SERVER_CHANGE", "true")
         }
         release {
@@ -91,6 +100,10 @@ dependencies {
 
     // Segurança (tokens criptografados via Android Keystore)
     implementation("androidx.security:security-crypto:1.1.0-alpha06")
+
+    // Push de dados em tempo real. Sem as quatro propriedades FIREBASE_* o app mantém o polling seguro.
+    implementation(platform("com.google.firebase:firebase-bom:34.14.1"))
+    implementation("com.google.firebase:firebase-messaging")
 
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.8.1")
