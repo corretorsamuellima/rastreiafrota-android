@@ -1,0 +1,8 @@
+<resources>
+    <string name="app_name">RastreiaFrota Áudio Plus</string>
+    <string name="notif_channel_tracking">Rastreamento ativo</string>
+    <string name="notif_tracking_title">Rastreamento em andamento</string>
+    <string name="notif_tracking_text">Este veículo está sendo monitorado pela empresa.</string>
+    <string name="notif_channel_audio">Proteção por áudio</string>
+    <string name="notif_channel_audio_requests">Solicitações de áudio</string>
+</resources>

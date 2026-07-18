@@ -1,0 +1,321 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#F5F7FB"
+    android:fillViewport="true">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="20dp">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="RASTREIAFROTA"
+            android:textColor="#2563EB"
+            android:textSize="12sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/tvStatus"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="5dp"
+            android:text="Rastreamento"
+            android:textColor="#0F172A"
+            android:textSize="26sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:text="Localização, conectividade e proteção do veículo."
+            android:textColor="#64748B"
+            android:textSize="14sp" />
+
+        <com.google.android.material.card.MaterialCardView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="18dp"
+            app:cardBackgroundColor="#FFFFFF"
+            app:cardCornerRadius="20dp"
+            app:cardElevation="1dp"
+            app:strokeColor="#E2E8F0"
+            app:strokeWidth="1dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="18dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="VEÍCULO E CONEXÃO"
+                    android:textColor="#64748B"
+                    android:textSize="11sp"
+                    android:textStyle="bold" />
+
+                <TextView android:id="@+id/tvVehicle" style="@style/RfLine" />
+                <TextView android:id="@+id/tvCompany" style="@style/RfLine" />
+                <TextView android:id="@+id/tvDevice" style="@style/RfLine" />
+                <TextView android:id="@+id/tvGps" style="@style/RfLine" />
+                <TextView android:id="@+id/tvNetwork" style="@style/RfLine" />
+                <TextView android:id="@+id/tvBattery" style="@style/RfLine" />
+                <TextView android:id="@+id/tvPending" style="@style/RfLine" />
+                <TextView android:id="@+id/tvLastSync" style="@style/RfLine" />
+                <TextView android:id="@+id/tvVersion" style="@style/RfLine" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnChangeServer"
+                    style="@style/Widget.Material3.Button.OutlinedButton"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:text="Atualizar URL e reconfigurar"
+                    app:cornerRadius="14dp" />
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnPermissions"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="14dp"
+            android:text="Conceder permissões de localização"
+            android:visibility="gone"
+            app:cornerRadius="14dp" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnBattery"
+            style="@style/Widget.Material3.Button.TonalButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="Liberar funcionamento em segundo plano"
+            android:visibility="gone"
+            app:cornerRadius="14dp" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:orientation="horizontal">
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnStart"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Iniciar GPS"
+                app:cornerRadius="14dp" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnStop"
+                style="@style/Widget.Material3.Button.OutlinedButton"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:layout_weight="1"
+                android:text="Pausar GPS"
+                app:cornerRadius="14dp" />
+        </LinearLayout>
+
+        <com.google.android.material.card.MaterialCardView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="20dp"
+            app:cardBackgroundColor="#0F172A"
+            app:cardCornerRadius="22dp"
+            app:cardElevation="2dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="20dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="Proteção por Áudio"
+                        android:textColor="#FFFFFF"
+                        android:textSize="21sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:id="@+id/tvAudioPlan"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:background="#1D4ED8"
+                        android:paddingHorizontal="10dp"
+                        android:paddingVertical="6dp"
+                        android:text="PLANO"
+                        android:textColor="#FFFFFF"
+                        android:textSize="10sp"
+                        android:textStyle="bold" />
+                </LinearLayout>
+
+                <TextView
+                    android:id="@+id/tvAudioStatus"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="10dp"
+                    android:text="Verificando recurso..."
+                    android:textColor="#E2E8F0"
+                    android:textSize="15sp" />
+
+                <TextView
+                    android:id="@+id/tvAudioLimits"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="6dp"
+                    android:textColor="#94A3B8"
+                    android:textSize="12sp" />
+
+                <TextView
+                    android:id="@+id/tvAudioRemote"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="9dp"
+                    android:background="#172554"
+                    android:padding="12dp"
+                    android:text="Solicitações do painel: verificando..."
+                    android:textColor="#DBEAFE"
+                    android:textSize="13sp" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnAudioCheckRequests"
+                    style="@style/Widget.Material3.Button.OutlinedButton"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:text="Verificar solicitações do painel"
+                    android:textColor="#FFFFFF"
+                    app:cornerRadius="14dp"
+                    app:strokeColor="#60A5FA" />
+
+                <TextView
+                    android:id="@+id/tvAudioPending"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:text="Áudios pendentes: 0"
+                    android:textColor="#BFDBFE"
+                    android:textSize="13sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="10dp"
+                    android:text="A gravação é iniciada pelo usuário, continua com a tela apagada e permanece visível na notificação e no indicador de microfone do Android."
+                    android:textColor="#CBD5E1"
+                    android:textSize="12sp" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnAudioPermission"
+                    style="@style/Widget.Material3.Button.TonalButton"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="14dp"
+                    android:text="Autorizar microfone"
+                    android:visibility="gone"
+                    app:cornerRadius="14dp" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnAudioStart"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="10dp"
+                    android:text="Iniciar gravação protegida"
+                    app:backgroundTint="#2563EB"
+                    app:cornerRadius="14dp" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnAudioPause"
+                    style="@style/Widget.Material3.Button.OutlinedButton"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:text="Pausar gravação"
+                    android:textColor="#FFFFFF"
+                    android:visibility="gone"
+                    app:cornerRadius="14dp"
+                    app:strokeColor="#60A5FA" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnAudioStop"
+                    style="@style/Widget.Material3.Button.OutlinedButton"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:text="Encerrar gravação"
+                    android:textColor="#FFFFFF"
+                    android:visibility="gone"
+                    app:cornerRadius="14dp"
+                    app:strokeColor="#94A3B8" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnAudioSos"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:text="SOS — gravar ocorrência"
+                    android:textColor="#FFFFFF"
+                    android:visibility="gone"
+                    app:backgroundTint="#DC2626"
+                    app:cornerRadius="14dp" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnAudioSync"
+                    style="@style/Widget.Material3.Button.TextButton"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:text="Sincronizar áudios agora"
+                    android:textColor="#93C5FD" />
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnSync"
+            style="@style/Widget.Material3.Button.OutlinedButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="18dp"
+            android:text="Sincronizar localização agora"
+            app:cornerRadius="14dp" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnTest"
+            style="@style/Widget.Material3.Button.OutlinedButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="Testar comunicação"
+            app:cornerRadius="14dp" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnDiagnostics"
+            style="@style/Widget.Material3.Button.TextButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:layout_marginBottom="24dp"
+            android:text="Abrir diagnóstico completo" />
+    </LinearLayout>
+</ScrollView>
