@@ -8,6 +8,7 @@ import com.rastreiafrota.app.data.remote.ApiClient
 import com.rastreiafrota.app.data.remote.BatchRequest
 import com.rastreiafrota.app.data.remote.LocationDto
 import com.rastreiafrota.app.data.remote.StatusRequest
+import com.rastreiafrota.app.push.FirebaseBootstrap
 import com.rastreiafrota.app.util.DeviceInfo
 import com.rastreiafrota.app.util.TrackingReadiness
 import java.util.UUID
@@ -129,6 +130,8 @@ class TrackingRepository(private val context: Context) {
             val data = response.body()?.data ?: return false
             data.trackingConfig?.let { settings.saveTrackingConfig(it) }
             data.audioConfig?.let { settings.saveAudioConfig(it) }
+            settings.saveFirebaseConfig(data.firebaseConfig)
+            FirebaseBootstrap.initialize(context)
             data.vehicle?.let {
                 settings.setVehicleInfo(it.plate, settings.companyName(), settings.deviceName())
             }
