@@ -82,9 +82,10 @@ class ActivationActivity : AppCompatActivity() {
                     settings.hmacSecret = data.hmacSecret
                     data.trackingConfig?.let { settings.saveTrackingConfig(it) }
                     data.audioConfig?.let { settings.saveAudioConfig(it) }
+                    settings.saveFirebaseConfig(data.firebaseConfig)
                     settings.setVehicleInfo(data.vehicle?.plate, data.company?.name, data.device?.name)
                     settings.setTrackingEnabled(true)
-                    FirebaseBootstrap.registerCurrentToken(applicationContext)
+                    FirebaseBootstrap.initialize(applicationContext)
                     startActivity(Intent(this@ActivationActivity, MainActivity::class.java))
                     finish()
                 } else {
