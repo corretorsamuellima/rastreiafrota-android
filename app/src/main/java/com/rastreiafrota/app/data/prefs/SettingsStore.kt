@@ -10,6 +10,7 @@ import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
 import com.rastreiafrota.app.BuildConfig
 import com.rastreiafrota.app.data.remote.AudioConfigData
+import com.rastreiafrota.app.data.remote.FirebaseConfigData
 import kotlinx.coroutines.flow.first
 import java.util.UUID
 
@@ -34,6 +35,30 @@ class SettingsStore(private val context: Context) {
     var hmacSecret: String?
         get() = secure.getString("hmac_secret", null)
         set(v) { secure.edit().putString("hmac_secret", v).apply() }
+
+    fun saveFirebaseConfig(config: FirebaseConfigData?) {
+        val edit = secure.edit()
+        if (config?.valid() == true) {
+            edit.putString("firebase_app_id", config.appId)
+                .putString("firebase_api_key", config.apiKey)
+                .putString("firebase_project_id", config.projectId)
+                .putString("firebase_sender_id", config.senderId)
+        } else {
+            edit.remove("firebase_app_id").remove("firebase_api_key")
+                .remove("firebase_project_id").remove("firebase_sender_id")
+        }
+        edit.apply()
+    }
+
+    fun firebaseConfig(): FirebaseConfigData? {
+        val config = FirebaseConfigData(
+            appId = secure.getString("firebase_app_id", "").orEmpty(),
+            apiKey = secure.getString("firebase_api_key", "").orEmpty(),
+            projectId = secure.getString("firebase_project_id", "").orEmpty(),
+            senderId = secure.getString("firebase_sender_id", "").orEmpty()
+        )
+        return config.takeIf { it.valid() }
+    }
 
     fun clearCredentials() { secure.edit().clear().apply() }
     val isActivated: Boolean get() = !accessToken.isNullOrEmpty()
