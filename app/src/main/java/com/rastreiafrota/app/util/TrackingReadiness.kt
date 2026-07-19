@@ -50,6 +50,6 @@ object TrackingReadiness {
         batteryUnrestricted = DeviceInfo.isIgnoringBatteryOptimizations(context),
         gpsEnabled = DeviceInfo.isGpsEnabled(context),
         online = DeviceInfo.isOnline(context),
-        firebaseConfigured = FirebaseBootstrap.configured()
+        firebaseConfigured = FirebaseBootstrap.configured(context)
     )
 }
