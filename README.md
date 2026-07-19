@@ -1,8 +1,8 @@
-# RastreiaFrota Áudio Plus 1.4.1
+# RastreiaFrota Áudio Plus 1.4.2
 
 Aplicativo Android nativo em Kotlin para rastreamento veicular, gravação de segurança autorizada e solicitações/agendamentos de áudio enviados pelo Painel CarroSeguro 2.5.
 
-## Novidades da versão 1.4.1
+## Novidades da versão 1.4.2
 
 - Botão para atualizar a URL do servidor e reconfigurar o aparelho.
 - HTTPS obrigatório em produção e nova ativação após a troca de servidor.
@@ -17,6 +17,8 @@ Aplicativo Android nativo em Kotlin para rastreamento veicular, gravação de se
 - Assistente de preparação para localização precisa, localização o tempo todo, notificações, GPS, internet e liberação de bateria.
 - Diagnóstico do Firebase e do último registro do token push, sem exibir o token.
 - Envio ao painel do estado real das permissões essenciais do celular.
+- Recebimento da configuração pública Firebase diretamente do Painel Master na ativação e nas atualizações remotas.
+- Troca ou desativação do projeto Firebase sem precisar recompilar o APK.
 
 ## Comportamento das solicitações
 
@@ -31,7 +33,7 @@ Aplicativo Android nativo em Kotlin para rastreamento veicular, gravação de se
 
 1. Abra esta pasta no Android Studio com JDK 17 ou superior.
 2. Para produção, ajuste `BASE_URL` do build `release` em `app/build.gradle.kts` para um domínio HTTPS.
-3. Para push em tempo real, informe `FIREBASE_APP_ID`, `FIREBASE_API_KEY`, `FIREBASE_PROJECT_ID` e `FIREBASE_SENDER_ID` como propriedades Gradle ou variáveis protegidas da compilação. Sem elas o app usa polling.
+3. Para push em tempo real, configure o Firebase em **Master → Configurações**. As propriedades Gradle `FIREBASE_*` continuam disponíveis somente como fallback de compilação.
 4. No Windows, execute `gradlew.bat assembleDebug`.
 5. O APK debug será gerado em `app/build/outputs/apk/debug/app-debug.apk`.
 6. Para release, copie `keystore.properties.example` para `keystore.properties`, configure sua chave e execute `gradlew.bat assembleRelease`.
@@ -40,8 +42,8 @@ Aplicativo Android nativo em Kotlin para rastreamento veicular, gravação de se
 
 - Aplicativo: RastreiaFrota Áudio Plus
 - Package ID: `com.rastreiafrota.app.audio.plus`
-- Versão: `1.4.1`
-- Version code: `9`
+- Versão: `1.4.2`
+- Version code: `10`
 - Android mínimo: 8.0 (API 26)
 - Target SDK: 34
 - Build debug/LAN permite HTTP para teste local com XAMPP.
