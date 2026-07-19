@@ -22,6 +22,7 @@ data class ActivateData(
     val vehicle: VehicleDto?,
     @SerializedName("tracking_config") val trackingConfig: Map<String, Int>?,
     @SerializedName("audio_config") val audioConfig: AudioConfigData?,
+    @SerializedName("firebase_config") val firebaseConfig: FirebaseConfigData?,
     @SerializedName("min_version_code") val minVersionCode: Int?
 )
 
@@ -74,11 +75,24 @@ data class StatusRequest(
 data class ConfigData(
     @SerializedName("tracking_config") val trackingConfig: Map<String, Int>?,
     @SerializedName("audio_config") val audioConfig: AudioConfigData?,
+    @SerializedName("firebase_config") val firebaseConfig: FirebaseConfigData?,
     val vehicle: VehicleDto?,
     @SerializedName("device_status") val deviceStatus: String?,
     @SerializedName("min_version_code") val minVersionCode: Int?,
     @SerializedName("server_time") val serverTime: String?
 )
+
+data class FirebaseConfigData(
+    @SerializedName("app_id") val appId: String,
+    @SerializedName("api_key") val apiKey: String,
+    @SerializedName("project_id") val projectId: String,
+    @SerializedName("sender_id") val senderId: String
+) {
+    fun valid(): Boolean = appId.contains(":android:")
+        && apiKey.length >= 20
+        && projectId.matches(Regex("^[a-z0-9][a-z0-9-]{3,61}[a-z0-9]$"))
+        && senderId.matches(Regex("^[0-9]{6,30}$"))
+}
 
 data class VersionData(val version: VersionInfo?)
 data class VersionInfo(
