@@ -47,7 +47,7 @@ android {
     buildTypes {
         debug {
             // URL de desenvolvimento configurável APENAS em debug (tela de ativação permite alterar)
-            buildConfigField("String", "BASE_URL", "\"http://192.168.1.102/painel-web/\"")
+            buildConfigField("String", "BASE_URL", "\"http://192.168.1.105/painel-web/\"")
             buildConfigField("boolean", "ALLOW_SERVER_CHANGE", "true")
         }
         release {
