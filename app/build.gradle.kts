@@ -25,8 +25,8 @@ android {
         applicationId = "com.rastreiafrota.app.audio.plus"
         minSdk = 26            // Android 8.0
         targetSdk = 34
-        versionCode = 10
-        versionName = "1.4.2"
+        versionCode = 11
+        versionName = "1.5.0"
         buildConfigField("String", "FIREBASE_APP_ID", quotedBuildConfig(firebaseValue("FIREBASE_APP_ID")))
         buildConfigField("String", "FIREBASE_API_KEY", quotedBuildConfig(firebaseValue("FIREBASE_API_KEY")))
         buildConfigField("String", "FIREBASE_PROJECT_ID", quotedBuildConfig(firebaseValue("FIREBASE_PROJECT_ID")))
@@ -52,7 +52,7 @@ android {
         }
         release {
             // AJUSTE AQUI a URL de produção (HTTPS obrigatório) antes de gerar o release
-            buildConfigField("String", "BASE_URL", "\"https://rastreio.seudominio.com.br/\"")
+            buildConfigField("String", "BASE_URL", "\"https://sentinela.vitrinedozap.com.br/\"")
             // A troca exige nova ativação, evitando reutilizar credenciais em outro servidor.
             buildConfigField("boolean", "ALLOW_SERVER_CHANGE", "true")
             isMinifyEnabled = true

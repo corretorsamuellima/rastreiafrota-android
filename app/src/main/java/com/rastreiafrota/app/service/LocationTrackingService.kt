@@ -37,6 +37,8 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import java.util.Date
 import java.util.UUID
 import kotlin.math.abs
@@ -61,6 +63,7 @@ class LocationTrackingService : Service() {
     private var lastMovementAt = System.currentTimeMillis()
     private var lastLocation: Location? = null
     private var lastAudioCommandPollAt = 0L
+    private val locationMutex = Mutex()
 
     override fun onCreate() {
         super.onCreate()
@@ -79,6 +82,7 @@ class LocationTrackingService : Service() {
                 stopSelf(); return@launch
             }
             repository.refreshRemoteConfig()
+            repository.settings.ensureRouteSession()
             if (repository.settings.audioRemoteRequestsEnabled() && DeviceInfo.isOnline(applicationContext)) {
                 audioCommandRepository.pollAndNotify()
                 lastAudioCommandPollAt = System.currentTimeMillis()
@@ -118,8 +122,13 @@ class LocationTrackingService : Service() {
 
     private val callback = object : LocationCallback() {
         override fun onLocationResult(result: LocationResult) {
-            val location = result.lastLocation ?: return
-            scope.launch { handleLocation(location) }
+            val locations = result.locations.sortedBy { it.time }
+            if (locations.isEmpty()) return
+            scope.launch {
+                locationMutex.withLock {
+                    locations.forEach { handleLocation(it) }
+                }
+            }
         }
     }
 
@@ -136,16 +145,30 @@ class LocationTrackingService : Service() {
     }
 
     private suspend fun handleLocation(location: Location) {
+        val now = System.currentTimeMillis()
+        val capturedMillis = location.time.takeIf { it > 0 } ?: now
+        if (capturedMillis < now - MAX_LOCATION_AGE_MS || capturedMillis > now + MAX_FUTURE_DRIFT_MS) return
+        if (location.hasAccuracy() && location.accuracy > repository.settings.maxAccuracyM()) return
+
         val speedKmh = if (location.hasSpeed()) location.speed * 3.6 else 0.0
         val minDistance = repository.settings.minDistanceM()
 
-        // Em movimento: respeita distância mínima entre pontos
         val previous = lastLocation
-        if (speedKmh > MOVING_SPEED_KMH && previous != null && previous.distanceTo(location) < minDistance) {
-            return
+        if (previous != null) {
+            val elapsedSeconds = ((capturedMillis - previous.time) / 1000.0).coerceAtLeast(0.001)
+            val distanceM = previous.distanceTo(location).toDouble()
+            val impliedSpeedKmh = (distanceM / elapsedSeconds) * 3.6
+            if (impliedSpeedKmh > MAX_PLAUSIBLE_SPEED_KMH) return
+            val moving = speedKmh > MOVING_SPEED_KMH || impliedSpeedKmh > MOVING_SPEED_KMH
+            // Mantém curvas e pontos periódicos; remove apenas amostras redundantes.
+            if (moving && distanceM < minDistance && elapsedSeconds < MAX_MOVING_GAP_SEC) return
+            if (!moving && distanceM < 2.0 && elapsedSeconds < MIN_STOPPED_POINT_GAP_SEC) return
         }
-        if (speedKmh > MOVING_SPEED_KMH) lastMovementAt = System.currentTimeMillis()
+        if (speedKmh > MOVING_SPEED_KMH || (previous?.distanceTo(location) ?: 0f) >= minDistance) {
+            lastMovementAt = now
+        }
         lastLocation = location
+        val (routeSessionUuid, sequenceNo) = repository.settings.nextRoutePointIdentity()
 
         val entity = PendingLocationEntity(
             uuid = UUID.randomUUID().toString(),
@@ -159,7 +182,9 @@ class LocationTrackingService : Service() {
             battery = DeviceInfo.batteryLevel(applicationContext),
             gpsEnabled = DeviceInfo.isGpsEnabled(applicationContext),
             mockLocation = if (Build.VERSION.SDK_INT >= 31) location.isMock else @Suppress("DEPRECATION") location.isFromMockProvider,
-            capturedAt = ApiClient.iso8601(Date(location.time.takeIf { it > 0 } ?: System.currentTimeMillis()))
+            routeSessionUuid = routeSessionUuid,
+            sequenceNo = sequenceNo,
+            capturedAt = ApiClient.iso8601(Date(capturedMillis))
         )
         repository.saveLocation(entity)
 
@@ -198,12 +223,14 @@ class LocationTrackingService : Service() {
     }
 
     private var lastNotifUpdate = 0L
-    private fun updateNotificationSubtitle(speedKmh: Double) {
+    private suspend fun updateNotificationSubtitle(speedKmh: Double) {
         val now = System.currentTimeMillis()
         if (now - lastNotifUpdate < 30_000) return
         lastNotifUpdate = now
+        val route = repository.currentRouteSnapshot()
+        val subtitle = "${route.distanceKm.format1()} km · ${route.pointsCount} pontos · ${speedKmh.toInt()} km/h"
         val nm = getSystemService(NOTIFICATION_SERVICE) as android.app.NotificationManager
-        nm.notify(NOTIF_ID, buildNotification("Velocidade: ${speedKmh.toInt()} km/h"))
+        nm.notify(NOTIF_ID, buildNotification(subtitle))
     }
 
     override fun onDestroy() {
@@ -219,6 +246,11 @@ class LocationTrackingService : Service() {
     companion object {
         const val NOTIF_ID = 1001
         const val MOVING_SPEED_KMH = 3.0
+        const val MAX_LOCATION_AGE_MS = 2 * 60 * 1000L
+        const val MAX_FUTURE_DRIFT_MS = 30 * 1000L
+        const val MAX_MOVING_GAP_SEC = 20.0
+        const val MIN_STOPPED_POINT_GAP_SEC = 45.0
+        const val MAX_PLAUSIBLE_SPEED_KMH = 250.0
 
         fun start(context: android.content.Context) {
             val intent = Intent(context, LocationTrackingService::class.java)
@@ -230,3 +262,5 @@ class LocationTrackingService : Service() {
         }
     }
 }
+
+private fun Double.format1(): String = String.format(java.util.Locale.US, "%.1f", this)

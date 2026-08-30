@@ -39,4 +39,12 @@ interface PendingLocationDao {
 
     @Query("SELECT MAX(capturedAt) FROM pending_locations")
     suspend fun lastCapturedAt(): String?
+
+    /** Pontos recentes da sessão para desenhar o trajeto local sem depender da internet. */
+    @Query("""SELECT * FROM (
+              SELECT * FROM pending_locations
+              WHERE routeSessionUuid = :sessionUuid
+              ORDER BY sequenceNo DESC LIMIT :limit
+            ) ORDER BY sequenceNo ASC""")
+    suspend fun routePoints(sessionUuid: String, limit: Int = 1500): List<PendingLocationEntity>
 }

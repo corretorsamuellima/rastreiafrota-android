@@ -7,7 +7,11 @@ import androidx.room.PrimaryKey
 /** Posição pendente de sincronização (fila offline). */
 @Entity(
     tableName = "pending_locations",
-    indices = [Index(value = ["uuid"], unique = true), Index(value = ["syncState", "capturedAt"])]
+    indices = [
+        Index(value = ["uuid"], unique = true),
+        Index(value = ["syncState", "capturedAt"]),
+        Index(value = ["routeSessionUuid", "sequenceNo"])
+    ]
 )
 data class PendingLocationEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
@@ -22,6 +26,10 @@ data class PendingLocationEntity(
     val battery: Int?,
     val gpsEnabled: Boolean,
     val mockLocation: Boolean,
+    /** Identifica um percurso contínuo, inclusive entre sincronizações offline. */
+    val routeSessionUuid: String,
+    /** Ordem monotônica do ponto dentro do percurso. */
+    val sequenceNo: Long,
     /** ISO-8601 com fuso — horário REAL da captura. */
     val capturedAt: String,
     val createdAt: Long = System.currentTimeMillis(),

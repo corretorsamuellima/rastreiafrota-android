@@ -13,6 +13,8 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.repeatOnLifecycle
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.snackbar.Snackbar
 import com.rastreiafrota.app.data.prefs.SettingsStore
@@ -30,6 +32,9 @@ import com.rastreiafrota.app.push.FirebaseBootstrap
 import com.rastreiafrota.app.work.AudioSyncWorker
 import com.rastreiafrota.app.work.SyncWorker
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
+import java.util.Locale
 
 class MainActivity : AppCompatActivity() {
     private lateinit var binding: ActivityMainBinding
@@ -134,6 +139,14 @@ class MainActivity : AppCompatActivity() {
         lifecycleScope.launch {
             audioRepository.pendingCountFlow().collect { binding.tvAudioPending.text = "Áudios pendentes: $it" }
         }
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                while (isActive) {
+                    refreshRouteUi()
+                    delay(3_000)
+                }
+            }
+        }
     }
 
     override fun onResume() {
@@ -217,6 +230,33 @@ class MainActivity : AppCompatActivity() {
             if (remoteEnabled) {
                 binding.tvAudioRemote.text = "Solicitações do painel: ${settings.lastAudioCommandMessage()}\nÚltima consulta: ${settings.lastAudioCommandCheck()}"
             }
+            refreshRouteUi()
+        }
+    }
+
+    private suspend fun refreshRouteUi() {
+        val route = repository.currentRouteSnapshot()
+        binding.routeTrailView.setRoutePoints(route.points)
+        binding.tvRouteTitle.text = when {
+            route.sessionUuid.isBlank() -> "Trajeto atual"
+            route.active -> "Trajeto sendo registrado"
+            else -> "Último trajeto registrado"
+        }
+        val hours = route.durationSeconds / 3600
+        val minutes = (route.durationSeconds % 3600) / 60
+        val duration = if (hours > 0) "${hours}h ${minutes}min" else "${minutes} min"
+        binding.tvRouteStats.text = String.format(
+            Locale("pt", "BR"),
+            "%.1f km · %d pontos · %s · %.0f km/h",
+            route.distanceKm,
+            route.pointsCount,
+            duration,
+            route.lastSpeedKmh ?: 0.0
+        )
+        binding.tvRouteQuality.text = when {
+            route.pointsCount == 0 -> "Inicie o GPS para registrar o percurso ponto a ponto."
+            route.accuracyPercent >= 85 -> "Sinal preciso: ${route.accuracyPercent}% dos pontos com precisão de até 30 m."
+            else -> "Precisão variável (${route.accuracyPercent}%). Mantenha o GPS e a localização precisa ativados."
         }
     }
 
@@ -382,6 +422,7 @@ class MainActivity : AppCompatActivity() {
             return
         }
         lifecycleScope.launch {
+            if (!settings.trackingEnabled()) settings.startNewRouteSession()
             settings.setTrackingEnabled(true)
             LocationTrackingService.start(this@MainActivity)
             refreshUi()
@@ -392,6 +433,8 @@ class MainActivity : AppCompatActivity() {
         lifecycleScope.launch {
             settings.setTrackingEnabled(false)
             LocationTrackingService.stop(this@MainActivity)
+            SyncWorker.enqueueNow(this@MainActivity)
+            settings.finishRouteSession()
             refreshUi()
         }
     }

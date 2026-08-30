@@ -43,6 +43,8 @@ data class LocationDto(
     @SerializedName("network_type") val networkType: String?,
     @SerializedName("gps_enabled") val gpsEnabled: Boolean,
     @SerializedName("mock_location") val mockLocation: Boolean,
+    @SerializedName("route_session_uuid") val routeSessionUuid: String,
+    @SerializedName("sequence_no") val sequenceNo: Long,
     @SerializedName("captured_at") val capturedAt: String
 )
 

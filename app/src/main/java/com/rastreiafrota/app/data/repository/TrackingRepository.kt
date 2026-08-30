@@ -1,6 +1,7 @@
 package com.rastreiafrota.app.data.repository
 
 import android.content.Context
+import android.location.Location
 import com.rastreiafrota.app.data.local.AppDatabase
 import com.rastreiafrota.app.data.local.PendingLocationEntity
 import com.rastreiafrota.app.data.prefs.SettingsStore
@@ -30,6 +31,38 @@ class TrackingRepository(private val context: Context) {
 
     suspend fun pendingCount(): Int = dao.pendingCount()
     fun pendingCountFlow() = dao.pendingCountFlow()
+
+    /** Prévia local do percurso ativo; funciona mesmo sem internet ou mapa externo. */
+    suspend fun currentRouteSnapshot(): LocalRouteSnapshot {
+        val activeSession = settings.currentRouteSession()
+        val sessionUuid = activeSession.ifBlank { settings.latestRouteSession() }
+        if (sessionUuid.isBlank()) return LocalRouteSnapshot.EMPTY
+        val rows = dao.routePoints(sessionUuid, 2000)
+        var distanceM = 0f
+        var previous: PendingLocationEntity? = null
+        val result = FloatArray(1)
+        rows.forEach { point ->
+            previous?.let {
+                Location.distanceBetween(it.latitude, it.longitude, point.latitude, point.longitude, result)
+                if (result[0].isFinite() && result[0] in 0f..5_000f) distanceM += result[0]
+            }
+            previous = point
+        }
+        val startedAt = settings.currentRouteStartedAt().takeIf { activeSession.isNotBlank() && it > 0 }
+            ?: rows.firstOrNull()?.createdAt ?: 0L
+        val endedAt = if (activeSession.isNotBlank()) System.currentTimeMillis() else rows.lastOrNull()?.createdAt ?: startedAt
+        val goodAccuracy = rows.count { (it.accuracy ?: 999.0) <= 30.0 }
+        return LocalRouteSnapshot(
+            sessionUuid = sessionUuid,
+            active = activeSession.isNotBlank(),
+            points = rows.map { RouteTrailPoint(it.latitude, it.longitude, it.sequenceNo) },
+            pointsCount = rows.size,
+            distanceKm = distanceM / 1000.0,
+            durationSeconds = if (startedAt > 0) ((endedAt - startedAt) / 1000L).coerceAtLeast(0) else 0,
+            lastSpeedKmh = rows.lastOrNull()?.speedKmh,
+            accuracyPercent = if (rows.isEmpty()) 0 else ((goodAccuracy * 100.0) / rows.size).toInt()
+        )
+    }
 
     /**
      * Sincroniza a fila em lotes. Nunca marca como enviada antes da confirmação.
@@ -190,6 +223,25 @@ class TrackingRepository(private val context: Context) {
         networkType = networkType,
         gpsEnabled = gpsEnabled,
         mockLocation = mockLocation,
+        routeSessionUuid = routeSessionUuid,
+        sequenceNo = sequenceNo,
         capturedAt = capturedAt
     )
+}
+
+data class RouteTrailPoint(val latitude: Double, val longitude: Double, val sequenceNo: Long)
+
+data class LocalRouteSnapshot(
+    val sessionUuid: String,
+    val active: Boolean,
+    val points: List<RouteTrailPoint>,
+    val pointsCount: Int,
+    val distanceKm: Double,
+    val durationSeconds: Long,
+    val lastSpeedKmh: Double?,
+    val accuracyPercent: Int
+) {
+    companion object {
+        val EMPTY = LocalRouteSnapshot("", false, emptyList(), 0, 0.0, 0, null, 0)
+    }
 }

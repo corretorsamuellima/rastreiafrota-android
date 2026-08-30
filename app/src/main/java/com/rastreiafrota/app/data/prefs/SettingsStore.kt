@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
+import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import androidx.security.crypto.EncryptedSharedPreferences
@@ -82,11 +83,16 @@ class SettingsStore(private val context: Context) {
     private val kIntervalStopped = intPreferencesKey("interval_stopped_sec")
     private val kIntervalIdle = intPreferencesKey("interval_idle_sec")
     private val kMinDistance = intPreferencesKey("min_distance_m")
+    private val kMaxAccuracy = intPreferencesKey("min_accuracy_m")
     private val kMaxBatch = intPreferencesKey("max_batch_size")
     private val kRetentionDays = intPreferencesKey("local_retention_days")
     private val kMaxLocal = intPreferencesKey("max_local_records")
     private val kLastSync = stringPreferencesKey("last_sync_at")
     private val kLastError = stringPreferencesKey("last_api_error")
+    private val kRouteSession = stringPreferencesKey("route_session_uuid")
+    private val kRouteSequence = longPreferencesKey("route_sequence")
+    private val kRouteStartedAt = longPreferencesKey("route_started_at")
+    private val kLastRouteSession = stringPreferencesKey("last_route_session_uuid")
 
     private val kAudioEnabled = booleanPreferencesKey("audio_enabled")
     private val kAudioSosEnabled = booleanPreferencesKey("audio_sos_enabled")
@@ -141,6 +147,7 @@ class SettingsStore(private val context: Context) {
             config["interval_stopped_sec"]?.let { prefs[kIntervalStopped] = it }
             config["interval_idle_sec"]?.let { prefs[kIntervalIdle] = it }
             config["min_distance_m"]?.let { prefs[kMinDistance] = it }
+            config["min_accuracy_m"]?.let { prefs[kMaxAccuracy] = it }
             config["max_batch_size"]?.let { prefs[kMaxBatch] = it }
             config["local_retention_days"]?.let { prefs[kRetentionDays] = it }
             config["max_local_records"]?.let { prefs[kMaxLocal] = it }
@@ -150,6 +157,7 @@ class SettingsStore(private val context: Context) {
     suspend fun intervalStoppedSec(): Int = context.dataStore.data.first()[kIntervalStopped] ?: 60
     suspend fun intervalIdleSec(): Int = context.dataStore.data.first()[kIntervalIdle] ?: 300
     suspend fun minDistanceM(): Int = context.dataStore.data.first()[kMinDistance] ?: 20
+    suspend fun maxAccuracyM(): Int = context.dataStore.data.first()[kMaxAccuracy] ?: 50
     suspend fun maxBatchSize(): Int = context.dataStore.data.first()[kMaxBatch] ?: 100
     suspend fun retentionDays(): Int = context.dataStore.data.first()[kRetentionDays] ?: 7
     suspend fun maxLocalRecords(): Int = context.dataStore.data.first()[kMaxLocal] ?: 50000
@@ -158,6 +166,64 @@ class SettingsStore(private val context: Context) {
     suspend fun lastSync(): String = context.dataStore.data.first()[kLastSync] ?: "—"
     suspend fun setLastApiError(msg: String?) { context.dataStore.edit { it[kLastError] = msg ?: "" } }
     suspend fun lastApiError(): String = context.dataStore.data.first()[kLastError] ?: ""
+
+    /** Inicia explicitamente um novo percurso. Use apenas na transição pausado → ativo. */
+    suspend fun startNewRouteSession(): String {
+        val uuid = UUID.randomUUID().toString()
+        context.dataStore.edit {
+            it[kRouteSession] = uuid
+            it[kRouteSequence] = 0L
+            it[kRouteStartedAt] = System.currentTimeMillis()
+        }
+        return uuid
+    }
+
+    /** Mantém a sessão após reinício do Android; cria uma somente se ainda não existir. */
+    suspend fun ensureRouteSession(): String {
+        var uuid = ""
+        context.dataStore.edit {
+            uuid = it[kRouteSession].orEmpty()
+            if (uuid.isBlank()) {
+                uuid = UUID.randomUUID().toString()
+                it[kRouteSession] = uuid
+                it[kRouteSequence] = 0L
+                it[kRouteStartedAt] = System.currentTimeMillis()
+            }
+        }
+        return uuid
+    }
+
+    /** Reserva de forma atômica a próxima sequência do percurso. */
+    suspend fun nextRoutePointIdentity(): Pair<String, Long> {
+        var uuid = ""
+        var sequence = 0L
+        context.dataStore.edit {
+            uuid = it[kRouteSession].orEmpty()
+            if (uuid.isBlank()) {
+                uuid = UUID.randomUUID().toString()
+                it[kRouteSession] = uuid
+                it[kRouteStartedAt] = System.currentTimeMillis()
+            }
+            sequence = (it[kRouteSequence] ?: 0L) + 1L
+            it[kRouteSequence] = sequence
+        }
+        return uuid to sequence
+    }
+
+    suspend fun currentRouteSession(): String = context.dataStore.data.first()[kRouteSession].orEmpty()
+    suspend fun latestRouteSession(): String {
+        val values = context.dataStore.data.first()
+        return values[kRouteSession].orEmpty().ifBlank { values[kLastRouteSession].orEmpty() }
+    }
+    suspend fun currentRouteStartedAt(): Long = context.dataStore.data.first()[kRouteStartedAt] ?: 0L
+    suspend fun finishRouteSession() {
+        context.dataStore.edit {
+            it[kRouteSession]?.takeIf(String::isNotBlank)?.let { uuid -> it[kLastRouteSession] = uuid }
+            it.remove(kRouteSession)
+            it.remove(kRouteSequence)
+            it.remove(kRouteStartedAt)
+        }
+    }
 
     suspend fun saveAudioConfig(config: AudioConfigData) {
         context.dataStore.edit {

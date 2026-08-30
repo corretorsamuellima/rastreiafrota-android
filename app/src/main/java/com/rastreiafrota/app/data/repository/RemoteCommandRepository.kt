@@ -26,8 +26,8 @@ class RemoteCommandRepository(private val context: Context) {
         } catch(_:Exception){0}
     }
     private suspend fun execute(type:String):String = when(type) {
-        "gps_start"->{settings.setTrackingEnabled(true);LocationTrackingService.start(context);"GPS iniciado remotamente"}
-        "gps_pause"->{settings.setTrackingEnabled(false);LocationTrackingService.stop(context);"GPS pausado remotamente"}
+        "gps_start"->{if(!settings.trackingEnabled())settings.startNewRouteSession();settings.setTrackingEnabled(true);LocationTrackingService.start(context);"GPS e novo trajeto iniciados remotamente"}
+        "gps_pause"->{settings.setTrackingEnabled(false);LocationTrackingService.stop(context);settings.finishRouteSession();"GPS pausado e trajeto encerrado remotamente"}
         "audio_pause"->{if(!settings.audioRecording())error("Não há gravação ativa");AudioRecordingService.pause(context);"Áudio pausado"}
         "audio_resume"->{if(!settings.audioRecording())error("Não há gravação ativa");AudioRecordingService.resume(context);"Áudio continuado"}
         "audio_stop"->{if(!settings.audioRecording())error("Não há gravação ativa");AudioRecordingService.stop(context);"Áudio encerrado"}
