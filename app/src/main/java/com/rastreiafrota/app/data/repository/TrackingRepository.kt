@@ -32,6 +32,13 @@ class TrackingRepository(private val context: Context) {
     suspend fun pendingCount(): Int = dao.pendingCount()
     fun pendingCountFlow() = dao.pendingCountFlow()
 
+    /** Última âncora persistida para o serviço continuar o mesmo traçado após reiniciar. */
+    suspend fun latestRoutePoint(): PendingLocationEntity? {
+        val sessionUuid = settings.currentRouteSession()
+        if (sessionUuid.isBlank()) return null
+        return dao.lastRoutePoint(sessionUuid)
+    }
+
     /** Prévia local do percurso ativo; funciona mesmo sem internet ou mapa externo. */
     suspend fun currentRouteSnapshot(): LocalRouteSnapshot {
         val activeSession = settings.currentRouteSession()

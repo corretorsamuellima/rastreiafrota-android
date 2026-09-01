@@ -1,14 +1,19 @@
-# RastreiaFrota Áudio Plus 1.8.0
+# RastreiaFrota Áudio Plus 1.8.1
 
 Aplicativo Android nativo em Kotlin para rastreamento veicular contínuo e autorizado, gravação de segurança autorizada e solicitações/agendamentos enviados pelo Painel CarroSeguro.
 
-## Novidades da versão 1.8.0
+## Novidades da versão 1.8.1
 
 - Rastreamento de alta precisão com atualização alvo de 1 segundo durante movimento.
 - Distância mínima dinâmica: até 2 metros em deslocamento lento, 5 metros em velocidade urbana e 10 metros em velocidade alta.
 - Pontos gravados no máximo a cada 2 segundos durante o movimento e em mudanças relevantes de direção, preservando curvas e caminhadas.
+- O primeiro ponto só vira âncora com precisão de até 15 metros; os demais pontos do trajeto exigem até 25 metros ou o limite menor configurado pelo painel.
+- Oscilações dentro da margem combinada de erro das duas coordenadas são rejeitadas, mesmo que o GPS calcule uma falsa velocidade.
+- A velocidade só confirma movimento quando continua positiva após descontar a incerteza informada pelo GNSS.
+- Suavização adaptativa mais forte em caminhada e mais leve em veículos reduz zigue-zagues sem cortar curvas.
+- A última âncora é restaurada depois de reiniciar o serviço, evitando uma linha falsa no mesmo percurso.
 - Watchdog reinicia a captura se o Android parar de entregar posições ao serviço.
-- Pontos de precisão reduzida são preservados periodicamente, em vez de eliminar todo o trecho sem registro.
+- Pontos sem precisão suficiente não entram no traçado; o aplicativo continua aguardando uma coordenada confiável sem inventar deslocamento.
 - Diagnóstico separado para última captura GPS, último ponto armazenado, fila pendente, sincronização e erro de rastreamento.
 - O aplicativo reinicia o serviço ao ser aberto quando o rastreamento já está habilitado e as permissões estão prontas.
 - Pontos rejeitados pela API permanecem na fila local para nova tentativa e investigação; não são marcados como sincronizados.
@@ -60,8 +65,8 @@ Aplicativo Android nativo em Kotlin para rastreamento veicular contínuo e autor
 
 - Aplicativo: RastreiaFrota Áudio Plus
 - Package ID: `com.rastreiafrota.app.audio.plus`
-- Versão: `1.8.0`
-- Version code: `14`
+- Versão: `1.8.1`
+- Version code: `15`
 - Android mínimo: 8.0 (API 26)
 - Target SDK: 34
 - Build debug/LAN permite HTTP para teste local com XAMPP.

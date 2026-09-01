@@ -68,7 +68,6 @@ class LocationTrackingService : Service() {
     private var lastLocation: Location? = null
     private var lastLocationCallbackAt = 0L
     private var lastLocationRequestAt = 0L
-    private var lastSavedAt = 0L
     private var lastHeartbeatAt = 0L
     private var lastAudioCommandPollAt = 0L
     private var consecutiveRejected = 0
@@ -113,6 +112,7 @@ class LocationTrackingService : Service() {
             }
 
             repository.settings.ensureRouteSession()
+            restoreLastRouteAnchor()
             if (repository.settings.audioRemoteRequestsEnabled() && DeviceInfo.isOnline(applicationContext)) {
                 audioCommandRepository.pollAndNotify()
                 lastAudioCommandPollAt = System.currentTimeMillis()
@@ -131,6 +131,20 @@ class LocationTrackingService : Service() {
     private fun hasPreciseLocationPermission(): Boolean =
         ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) ==
             PackageManager.PERMISSION_GRANTED
+
+    /** Evita criar um salto no desenho quando o serviço ou o celular reinicia no mesmo trajeto. */
+    private suspend fun restoreLastRouteAnchor() {
+        if (lastLocation != null) return
+        val point = repository.latestRoutePoint() ?: return
+        lastLocation = Location("route_database").apply {
+            latitude = point.latitude
+            longitude = point.longitude
+            time = point.createdAt
+            point.accuracy?.takeIf { it.isFinite() && it > 0.0 }?.let { accuracy = it.toFloat() }
+            point.speedKmh?.takeIf { it.isFinite() && it >= 0.0 }?.let { speed = (it / 3.6).toFloat() }
+            point.bearing?.takeIf { it.isFinite() }?.let { bearing = it.toFloat() }
+        }
+    }
 
     private fun startAsForeground() {
         val notification = buildNotification()
@@ -188,10 +202,11 @@ class LocationTrackingService : Service() {
         val intervalMs = intervalSec.coerceAtLeast(MIN_REQUEST_INTERVAL_SEC) * 1000L
         val request = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, intervalMs)
             .setGranularity(Granularity.GRANULARITY_FINE)
-            .setMinUpdateIntervalMillis(max(500L, intervalMs / 2L))
+            .setMinUpdateIntervalMillis(intervalMs)
             .setMaxUpdateDelayMillis(intervalMs)
+            .setMaxUpdateAgeMillis(0L)
             .setMinUpdateDistanceMeters(0f)
-            .setWaitForAccurateLocation(false)
+            .setWaitForAccurateLocation(true)
             .build()
 
         fused.requestLocationUpdates(request, callback, Looper.getMainLooper())
@@ -221,17 +236,29 @@ class LocationTrackingService : Service() {
             return
         }
 
+        val previous = lastLocation
         val accuracyM = if (location.hasAccuracy()) location.accuracy.toDouble() else null
-        if (accuracyM != null && accuracyM > HARD_MAX_ACCURACY_M) {
-            reject("Sinal de GPS muito impreciso (${accuracyM.toInt()} m); tentando novamente.")
+        val configuredMaxAccuracy = repository.settings.maxAccuracyM()
+        if (!TrackingPointPolicy.hasUsableAccuracy(previous != null, accuracyM, configuredMaxAccuracy)) {
+            val measured = accuracyM?.takeIf { it.isFinite() }?.toInt()?.let { "±$it m" } ?: "indisponível"
+            reject("Aguardando sinal GPS mais preciso ($measured); este ponto não entrou no trajeto.")
             return
         }
 
-        val speedKmh = if (location.hasSpeed()) location.speed * 3.6 else 0.0
-        val previous = lastLocation
+        val reportedSpeedKmh = if (location.hasSpeed()) location.speed * 3.6 else null
+        val speedAccuracyKmh = if (Build.VERSION.SDK_INT >= 26 && location.hasSpeedAccuracy()) {
+            location.speedAccuracyMetersPerSecond * 3.6
+        } else {
+            null
+        }
+        val reliableReportedMovement = TrackingPointPolicy.hasReliableReportedMovement(
+            reportedSpeedKmh,
+            speedAccuracyKmh
+        )
         var distanceM = Double.POSITIVE_INFINITY
         var elapsedSeconds = Double.POSITIVE_INFINITY
         var impliedSpeedKmh = 0.0
+        var reliableDisplacement = false
 
         if (previous != null) {
             val previousMillis = previous.time.takeIf { it > 0 } ?: capturedMillis
@@ -245,39 +272,68 @@ class LocationTrackingService : Service() {
                 reject("Salto impossível de GPS descartado (${impliedSpeedKmh.toInt()} km/h calculados).")
                 return
             }
+            if (!reliableReportedMovement && impliedSpeedKmh > MAX_UNCONFIRMED_SPEED_KMH) {
+                reject("Salto de GPS sem velocidade confiável descartado (${impliedSpeedKmh.toInt()} km/h).")
+                return
+            }
+            reliableDisplacement = TrackingPointPolicy.hasReliableDisplacement(
+                distanceM,
+                previous.takeIf { it.hasAccuracy() }?.accuracy?.toDouble(),
+                accuracyM
+            )
         }
 
-        val movementSpeedKmh = max(speedKmh, impliedSpeedKmh)
+        val reliableMovement = previous == null || reliableReportedMovement || reliableDisplacement
+        if (previous != null && !reliableMovement) {
+            reject(
+                "Oscilação do GPS ignorada: deslocamento dentro da margem de erro " +
+                    "(±${accuracyM!!.toInt()} m)."
+            )
+            return
+        }
+
+        val movementSpeedKmh = when {
+            previous == null -> reportedSpeedKmh ?: 0.0
+            reliableReportedMovement -> reportedSpeedKmh ?: 0.0
+            reliableDisplacement -> max(impliedSpeedKmh, FALLBACK_WALKING_SPEED_KMH)
+            else -> 0.0
+        }
+        val stabilizedLocation = if (previous == null) {
+            Location(location)
+        } else {
+            val alpha = TrackingPointPolicy.smoothingAlpha(accuracyM!!, movementSpeedKmh)
+            Location(location).apply {
+                latitude = previous.latitude + (location.latitude - previous.latitude) * alpha
+                longitude = previous.longitude + (location.longitude - previous.longitude) * alpha
+            }
+        }
+        val stabilizedDistanceM = previous?.distanceTo(stabilizedLocation)?.toDouble()
+            ?: Double.POSITIVE_INFINITY
         val configuredMinDistance = repository.settings.minDistanceM()
-        val effectiveMinDistance = TrackingPointPolicy.effectiveMinDistance(
-            configuredMinDistance,
-            movementSpeedKmh
-        )
         val shouldStore = TrackingPointPolicy.shouldStore(
             hasPrevious = previous != null,
-            distanceM = distanceM,
+            distanceM = stabilizedDistanceM,
             elapsedSeconds = elapsedSeconds,
             movementSpeedKmh = movementSpeedKmh,
+            reliableMovement = reliableMovement,
             accuracyM = accuracyM,
-            configuredMaxAccuracyM = repository.settings.maxAccuracyM(),
-            millisSinceLastSaved = if (lastSavedAt > 0L) capturedMillis - lastSavedAt else Long.MAX_VALUE,
+            configuredMaxAccuracyM = configuredMaxAccuracy,
             configuredMinDistanceM = configuredMinDistance,
             previousBearing = previous?.takeIf { it.hasBearing() }?.bearing?.toDouble(),
             currentBearing = location.takeIf { it.hasBearing() }?.bearing?.toDouble()
         )
         if (!shouldStore) return
 
-        val moving = movementSpeedKmh > TrackingPointPolicy.MOVING_SPEED_KMH
-        if (moving || distanceM >= effectiveMinDistance) lastMovementAt = now
-        lastLocation = location
+        lastMovementAt = now
+        lastLocation = stabilizedLocation
 
         val (routeSessionUuid, sequenceNo) = repository.settings.nextRoutePointIdentity()
         val entity = PendingLocationEntity(
             uuid = UUID.randomUUID().toString(),
-            latitude = location.latitude,
-            longitude = location.longitude,
+            latitude = stabilizedLocation.latitude,
+            longitude = stabilizedLocation.longitude,
             altitude = if (location.hasAltitude()) location.altitude else null,
-            speedKmh = if (location.hasSpeed()) speedKmh else null,
+            speedKmh = reportedSpeedKmh,
             bearing = if (location.hasBearing()) location.bearing.toDouble() else null,
             accuracy = accuracyM,
             networkType = DeviceInfo.networkType(applicationContext),
@@ -298,10 +354,8 @@ class LocationTrackingService : Service() {
         repository.settings.setLastCapture(entity.capturedAt)
         repository.settings.setLastTrackingError(null)
         consecutiveRejected = 0
-        lastSavedAt = capturedMillis
-
         if (DeviceInfo.isOnline(applicationContext)) SyncWorker.enqueueNow(applicationContext)
-        updateNotificationSubtitle(speedKmh, accuracyM)
+        updateNotificationSubtitle(movementSpeedKmh, accuracyM)
     }
 
     private suspend fun reject(message: String) {
@@ -408,8 +462,9 @@ class LocationTrackingService : Service() {
         const val MIN_REQUEST_INTERVAL_SEC = 1
         const val MAX_LOCATION_AGE_MS = 2 * 60 * 1000L
         const val MAX_FUTURE_DRIFT_MS = 30 * 1000L
-        const val HARD_MAX_ACCURACY_M = 250.0
         const val MAX_PLAUSIBLE_SPEED_KMH = 250.0
+        const val MAX_UNCONFIRMED_SPEED_KMH = 80.0
+        const val FALLBACK_WALKING_SPEED_KMH = 4.0
         const val WATCHDOG_TICK_MS = 20_000L
         const val GPS_WATCHDOG_MIN_MS = 2 * 60 * 1000L
         const val HEARTBEAT_INTERVAL_MS = 5 * 60 * 1000L

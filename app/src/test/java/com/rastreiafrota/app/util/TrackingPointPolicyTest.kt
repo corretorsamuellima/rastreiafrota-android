@@ -27,9 +27,15 @@ class TrackingPointPolicyTest {
     }
 
     @Test
-    fun storesStationaryHeartbeatEveryFifteenSeconds() {
-        assertFalse(decision(distanceM = 0.5, elapsedSeconds = 14.9, speedKmh = 0.0))
-        assertTrue(decision(distanceM = 0.5, elapsedSeconds = 15.0, speedKmh = 0.0))
+    fun neverTurnsStationaryGpsJitterIntoRoutePoints() {
+        assertFalse(
+            decision(
+                distanceM = 12.0,
+                elapsedSeconds = 60.0,
+                speedKmh = 0.0,
+                reliableMovement = false
+            )
+        )
     }
 
     @Test
@@ -55,49 +61,72 @@ class TrackingPointPolicyTest {
     }
 
     @Test
-    fun throttlesLowAccuracyWithoutDroppingTheWholeRoute() {
+    fun rejectsLowAccuracyInsteadOfDrawingFalseLines() {
         assertFalse(
             decision(
                 distanceM = 20.0,
                 elapsedSeconds = 10.0,
                 speedKmh = 15.0,
-                accuracyM = 90.0,
-                millisSinceLastSaved = 20_000L
-            )
-        )
-        assertTrue(
-            decision(
-                distanceM = 20.0,
-                elapsedSeconds = 30.0,
-                speedKmh = 15.0,
-                accuracyM = 90.0,
-                millisSinceLastSaved = 30_000L
+                accuracyM = 26.0
             )
         )
     }
 
     @Test
-    fun alwaysStoresFirstValidPoint() {
+    fun firstPointRequiresStrongerAccuracy() {
         assertTrue(
             TrackingPointPolicy.shouldStore(
                 hasPrevious = false,
                 distanceM = Double.POSITIVE_INFINITY,
                 elapsedSeconds = Double.POSITIVE_INFINITY,
                 movementSpeedKmh = 0.0,
-                accuracyM = 100.0,
+                reliableMovement = true,
+                accuracyM = 15.0,
                 configuredMaxAccuracyM = 50,
-                millisSinceLastSaved = 0L,
                 configuredMinDistanceM = 20
             )
         )
+        assertFalse(
+            TrackingPointPolicy.shouldStore(
+                hasPrevious = false,
+                distanceM = Double.POSITIVE_INFINITY,
+                elapsedSeconds = Double.POSITIVE_INFINITY,
+                movementSpeedKmh = 0.0,
+                reliableMovement = true,
+                accuracyM = 15.1,
+                configuredMaxAccuracyM = 50,
+                configuredMinDistanceM = 20
+            )
+        )
+    }
+
+    @Test
+    fun displacementMustExceedTheCombinedGpsUncertainty() {
+        val radius = TrackingPointPolicy.uncertaintyRadius(10.0, 10.0)
+        assertEquals(17.67, radius, 0.02)
+        assertFalse(TrackingPointPolicy.hasReliableDisplacement(17.0, 10.0, 10.0))
+        assertTrue(TrackingPointPolicy.hasReliableDisplacement(18.0, 10.0, 10.0))
+    }
+
+    @Test
+    fun speedMustRemainPositiveAfterSubtractingItsError() {
+        assertTrue(TrackingPointPolicy.hasReliableReportedMovement(5.0, 1.0))
+        assertFalse(TrackingPointPolicy.hasReliableReportedMovement(5.0, 4.0))
+        assertFalse(TrackingPointPolicy.hasReliableReportedMovement(3.0, null))
+    }
+
+    @Test
+    fun smoothsWalkingMoreThanFastVehicleMovement() {
+        assertEquals(0.50, TrackingPointPolicy.smoothingAlpha(14.0, 5.0), 0.0)
+        assertEquals(0.80, TrackingPointPolicy.smoothingAlpha(14.0, 40.0), 0.0)
     }
 
     private fun decision(
         distanceM: Double,
         elapsedSeconds: Double,
         speedKmh: Double,
+        reliableMovement: Boolean = true,
         accuracyM: Double? = 10.0,
-        millisSinceLastSaved: Long = 60_000L,
         previousBearing: Double? = null,
         currentBearing: Double? = null
     ): Boolean = TrackingPointPolicy.shouldStore(
@@ -105,9 +134,9 @@ class TrackingPointPolicyTest {
         distanceM = distanceM,
         elapsedSeconds = elapsedSeconds,
         movementSpeedKmh = speedKmh,
+        reliableMovement = reliableMovement,
         accuracyM = accuracyM,
         configuredMaxAccuracyM = 50,
-        millisSinceLastSaved = millisSinceLastSaved,
         configuredMinDistanceM = 20,
         previousBearing = previousBearing,
         currentBearing = currentBearing

@@ -25,8 +25,8 @@ android {
         applicationId = "com.rastreiafrota.app.audio.plus"
         minSdk = 26            // Android 8.0
         targetSdk = 34
-        versionCode = 14
-        versionName = "1.8.0"
+        versionCode = 15
+        versionName = "1.8.1"
         buildConfigField("String", "FIREBASE_APP_ID", quotedBuildConfig(firebaseValue("FIREBASE_APP_ID")))
         buildConfigField("String", "FIREBASE_API_KEY", quotedBuildConfig(firebaseValue("FIREBASE_API_KEY")))
         buildConfigField("String", "FIREBASE_PROJECT_ID", quotedBuildConfig(firebaseValue("FIREBASE_PROJECT_ID")))

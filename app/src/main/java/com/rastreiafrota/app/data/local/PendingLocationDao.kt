@@ -47,4 +47,9 @@ interface PendingLocationDao {
               ORDER BY sequenceNo DESC LIMIT :limit
             ) ORDER BY sequenceNo ASC""")
     suspend fun routePoints(sessionUuid: String, limit: Int = 1500): List<PendingLocationEntity>
+
+    @Query("""SELECT * FROM pending_locations
+              WHERE routeSessionUuid = :sessionUuid
+              ORDER BY sequenceNo DESC LIMIT 1""")
+    suspend fun lastRoutePoint(sessionUuid: String): PendingLocationEntity?
 }
