@@ -89,6 +89,8 @@ class SettingsStore(private val context: Context) {
     private val kMaxLocal = intPreferencesKey("max_local_records")
     private val kLastSync = stringPreferencesKey("last_sync_at")
     private val kLastError = stringPreferencesKey("last_api_error")
+    private val kLastCapture = stringPreferencesKey("last_capture_at")
+    private val kLastTrackingError = stringPreferencesKey("last_tracking_error")
     private val kRouteSession = stringPreferencesKey("route_session_uuid")
     private val kRouteSequence = longPreferencesKey("route_sequence")
     private val kRouteStartedAt = longPreferencesKey("route_started_at")
@@ -166,6 +168,10 @@ class SettingsStore(private val context: Context) {
     suspend fun lastSync(): String = context.dataStore.data.first()[kLastSync] ?: "—"
     suspend fun setLastApiError(msg: String?) { context.dataStore.edit { it[kLastError] = msg ?: "" } }
     suspend fun lastApiError(): String = context.dataStore.data.first()[kLastError] ?: ""
+    suspend fun setLastCapture(iso: String) { context.dataStore.edit { it[kLastCapture] = iso } }
+    suspend fun lastCapture(): String = context.dataStore.data.first()[kLastCapture] ?: "—"
+    suspend fun setLastTrackingError(msg: String?) { context.dataStore.edit { it[kLastTrackingError] = msg ?: "" } }
+    suspend fun lastTrackingError(): String = context.dataStore.data.first()[kLastTrackingError] ?: ""
 
     /** Inicia explicitamente um novo percurso. Use apenas na transição pausado → ativo. */
     suspend fun startNewRouteSession(): String {

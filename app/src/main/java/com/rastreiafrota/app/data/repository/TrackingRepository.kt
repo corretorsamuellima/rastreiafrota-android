@@ -99,13 +99,18 @@ class TrackingRepository(private val context: Context) {
                 val rejected = body.data?.rejected.orEmpty()
 
                 if (accepted.isNotEmpty()) dao.markSynced(accepted)
+                totalSent += accepted.size
+
                 if (rejected.isNotEmpty()) {
-                    dao.markFailed(rejected.keys.toList(), rejected.values.firstOrNull())
-                    // Rejeição definitiva de validação: não reenviar eternamente.
-                    dao.markSynced(rejected.keys.toList())
+                    val rejectionMessage = rejected.values.distinct().joinToString("; ").ifBlank {
+                        "O servidor rejeitou ${rejected.size} posição(ões)."
+                    }
+                    // Nunca transforma rejeição em sucesso: os pontos permanecem na fila local.
+                    dao.markFailed(rejected.keys.toList(), rejectionMessage)
+                    settings.setLastApiError(rejectionMessage)
+                    return totalSent to true
                 }
 
-                totalSent += accepted.size
                 settings.setLastSync(ApiClient.iso8601(java.util.Date()))
                 settings.setLastApiError(null)
             } else {
@@ -132,7 +137,8 @@ class TrackingRepository(private val context: Context) {
                     pendingCount = dao.pendingCount(),
                     appVersion = DeviceInfo.appVersion(context),
                     event = event,
-                    lastError = settings.lastApiError().takeIf { it.isNotBlank() },
+                    lastError = listOf(settings.lastTrackingError(), settings.lastApiError())
+                        .firstOrNull { it.isNotBlank() },
                     backgroundLocation = readiness.backgroundLocation,
                     notificationsEnabled = readiness.notifications,
                     batteryOptimizationIgnored = readiness.batteryUnrestricted,

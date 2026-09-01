@@ -159,6 +159,9 @@ class MainActivity : AppCompatActivity() {
         lifecycleScope.launch {
             repository.refreshRemoteConfig()
             RemoteCommandRepository(applicationContext).pollAndExecute()
+            if (settings.trackingEnabled() && hasLocationPermissions()) {
+                LocationTrackingService.start(this@MainActivity)
+            }
             refreshUi()
             if (settings.audioRemoteRequestsEnabled()) checkAudioCommands(false)
         }

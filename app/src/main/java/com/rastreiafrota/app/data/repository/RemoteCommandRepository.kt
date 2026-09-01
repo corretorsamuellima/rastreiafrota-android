@@ -5,6 +5,7 @@ import com.rastreiafrota.app.data.prefs.SettingsStore
 import com.rastreiafrota.app.data.remote.ApiClient
 import com.rastreiafrota.app.data.remote.DeviceCommandResponseRequest
 import com.rastreiafrota.app.service.AudioRecordingService
+import com.rastreiafrota.app.service.AlarmService
 import com.rastreiafrota.app.service.LocationTrackingService
 import com.rastreiafrota.app.work.AudioSyncWorker
 import com.rastreiafrota.app.work.SyncWorker
@@ -31,6 +32,8 @@ class RemoteCommandRepository(private val context: Context) {
         "audio_pause"->{if(!settings.audioRecording())error("Não há gravação ativa");AudioRecordingService.pause(context);"Áudio pausado"}
         "audio_resume"->{if(!settings.audioRecording())error("Não há gravação ativa");AudioRecordingService.resume(context);"Áudio continuado"}
         "audio_stop"->{if(!settings.audioRecording())error("Não há gravação ativa");AudioRecordingService.stop(context);"Áudio encerrado"}
+        "alarm_on"->{AlarmService.start(context);"Sirene antifurto acionada"}
+        "alarm_off"->{AlarmService.stop(context);"Sirene antifurto desligada"}
         "sync_now"->{SyncWorker.enqueueNow(context);AudioSyncWorker.enqueueNow(context);"Sincronização solicitada"}
         "refresh_config"->{TrackingRepository(context).refreshRemoteConfig();"Configurações atualizadas"}
         else->error("Comando desconhecido")

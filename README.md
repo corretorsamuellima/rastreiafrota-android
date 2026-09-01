@@ -1,16 +1,24 @@
-# RastreiaFrota Áudio Plus 1.5.0
+# RastreiaFrota Áudio Plus 1.8.0
 
-Aplicativo Android nativo em Kotlin para rastreamento veicular, gravação de segurança autorizada e solicitações/agendamentos de áudio enviados pelo Painel CarroSeguro 2.5.
+Aplicativo Android nativo em Kotlin para rastreamento veicular contínuo e autorizado, gravação de segurança autorizada e solicitações/agendamentos enviados pelo Painel CarroSeguro.
 
-## Novidades da versão 1.5.0
+## Novidades da versão 1.8.0
 
+- Rastreamento de alta precisão com atualização alvo de 1 segundo durante movimento.
+- Distância mínima dinâmica: até 2 metros em deslocamento lento, 5 metros em velocidade urbana e 10 metros em velocidade alta.
+- Pontos gravados no máximo a cada 2 segundos durante o movimento e em mudanças relevantes de direção, preservando curvas e caminhadas.
+- Watchdog reinicia a captura se o Android parar de entregar posições ao serviço.
+- Pontos de precisão reduzida são preservados periodicamente, em vez de eliminar todo o trecho sem registro.
+- Diagnóstico separado para última captura GPS, último ponto armazenado, fila pendente, sincronização e erro de rastreamento.
+- O aplicativo reinicia o serviço ao ser aberto quando o rastreamento já está habilitado e as permissões estão prontas.
+- Pontos rejeitados pela API permanecem na fila local para nova tentativa e investigação; não são marcados como sincronizados.
 - Cada percurso recebe uma sessão própria e cada posição recebe um número sequencial.
 - O serviço processa todos os pontos entregues pelo GPS, e não somente o último de cada retorno.
 - Filtros contra posição antiga, baixa precisão, repetição e salto impossível de GPS.
-- Intervalo móvel de 5 segundos e distância mínima de 8 metros para registrar curvas com mais fidelidade.
 - Prévia vetorial do trajeto no próprio aplicativo, inclusive sem internet e sem chave externa de mapa.
 - Resumo local com distância, pontos, duração, velocidade e qualidade do sinal.
-- Fila Room atualizada sem perder os pontos pendentes das versões anteriores.
+- Migrações Room preservam os pontos pendentes das versões anteriores.
+- Sirene antifurto acionável pelo painel, com notificação visível, botão local para parar e desligamento automático de segurança.
 
 ### Recursos preservados da versão 1.4.2
 
@@ -52,8 +60,8 @@ Aplicativo Android nativo em Kotlin para rastreamento veicular, gravação de se
 
 - Aplicativo: RastreiaFrota Áudio Plus
 - Package ID: `com.rastreiafrota.app.audio.plus`
-- Versão: `1.5.0`
-- Version code: `11`
+- Versão: `1.8.0`
+- Version code: `14`
 - Android mínimo: 8.0 (API 26)
 - Target SDK: 34
 - Build debug/LAN permite HTTP para teste local com XAMPP.

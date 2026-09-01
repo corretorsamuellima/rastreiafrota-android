@@ -40,6 +40,18 @@ class App : Application() {
             NotificationChannel(CHANNEL_AUDIO_REQUESTS, getString(R.string.notif_channel_audio_requests), NotificationManager.IMPORTANCE_HIGH)
                 .apply { description = "Solicitações de gravação que exigem confirmação visível no celular." }
         )
+        // Canal do alarme antifurto: importância máxima e som próprio do canal desligado,
+        // porque quem toca é o AlarmService no stream de ALARME (que o modo silencioso não corta).
+        manager.createNotificationChannel(
+            NotificationChannel(CHANNEL_ALARM, "Alarme antifurto", NotificationManager.IMPORTANCE_HIGH)
+                .apply {
+                    description = "Sirene disparada pelo painel quando o veículo sai da condição segura."
+                    setSound(null, null)
+                    enableVibration(false)
+                    setBypassDnd(true)
+                    lockscreenVisibility = android.app.Notification.VISIBILITY_PUBLIC
+                }
+        )
     }
 
     private fun schedulePeriodicSync() {
@@ -58,5 +70,6 @@ class App : Application() {
         const val CHANNEL_TRACKING = "rf_tracking"
         const val CHANNEL_AUDIO = "rf_audio"
         const val CHANNEL_AUDIO_REQUESTS = "rf_audio_requests"
+        const val CHANNEL_ALARM = "rf_alarm"
     }
 }
