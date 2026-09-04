@@ -75,3 +75,4 @@ Aplicativo Android nativo em Kotlin para rastreamento veicular contínuo e autor
 ## Arquitetura
 
 MVVM leve + Repository, Room, Retrofit/OkHttp, WorkManager, Foreground Service, DataStore e Android Keystore/EncryptedSharedPreferences.
+\n\nBuild automatizado da versão 1.3.0.\n
